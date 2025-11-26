@@ -1,12 +1,13 @@
 {
   "name": "ollama-remote-mcp",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A Model Context Protocol (MCP) server for remote Ollama access",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
     "ollama-remote-mcp": "./dist/index.js"
   },
+  "license": "MIT",
   "keywords": [
     "ollama",
     "mcp",

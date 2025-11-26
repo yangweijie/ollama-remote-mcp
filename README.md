@@ -62,6 +62,8 @@ ollama-remote-mcp/
 - 支持远程Ollama实例连接
 
 ## trae 使用
+
+### mcp 配置
 ~~~ json
 {
   "mcpServers": {
@@ -78,6 +80,14 @@ ollama-remote-mcp/
   }
 }
 ~~~
+
+### 提问
+~~~ 
+请使用 remote ollama 工具，调用 gemini-3-pro-preview 模型帮我写一个 Python 的 Hello World。
+~~~
+
+### 效果
+![在trae中使用效果](./screenshot/chat_with_trae.png)
 
 ## 开发
 

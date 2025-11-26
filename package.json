@@ -7,6 +7,13 @@
   "bin": {
     "ollama-remote-mcp": "./dist/index.js"
   },
+  "keywords": [
+    "ollama",
+    "mcp",
+    "model",
+    "context",
+    "protocol"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/yangweijie/ollama-remote-mcp.git"

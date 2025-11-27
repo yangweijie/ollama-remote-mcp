@@ -86,6 +86,10 @@ ollama-remote-mcp/
 请使用 remote ollama 工具，调用 gemini-3-pro-preview 模型帮我写一个 Python 的 Hello World。
 ~~~
 
+ps:
+> gemini-3-pro-preview 变为了 gemini-3-pro-preview:latest 换 kimi-k2-thinking:cloud 才好使。
+~~~
+
 ### 效果
 ![在trae中使用效果](./screenshot/chat_with_trae.png)
 

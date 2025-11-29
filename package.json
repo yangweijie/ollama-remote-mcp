@@ -1,6 +1,6 @@
 {
   "name": "ollama-remote-mcp",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "A Model Context Protocol (MCP) server for remote Ollama access",
   "type": "module",
   "main": "dist/index.js",
@@ -25,7 +25,11 @@
   "homepage": "https://github.com/yangweijie/ollama-remote-mcp#readme",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "node test.cjs",
+    "test:connection": "node test.cjs connection",
+    "test:build": "node test.cjs build",
+    "test:start": "node test.cjs start"
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",

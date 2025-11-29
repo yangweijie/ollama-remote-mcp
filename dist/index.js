@@ -84,7 +84,7 @@ server.tool("list_ollama_models", "列出远程 Ollama 服务器上所有可用�
         });
         // 如果只显示云端模型，过滤结果
         const filteredModels = only_remote
-            ? modelList.filter(model => model.isRemoteModel)
+            ? modelList.filter((model) => model.isRemoteModel)
             : modelList;
         const displayModels = filteredModels.length > 0 ? filteredModels : modelList;
         // 生成格式化输出
@@ -123,7 +123,7 @@ server.tool("chat_with_remote_ollama", "向远程 Ollama 服务器发送对话�
 }, async ({ model, message, system_prompt, temperature }) => {
     try {
         // 构建请求 URL
-        const url = `${OLLAMA_BASE_URL.replace(/\/$/, "")}/api/chat`;
+        const url = `${OLLAMA_BASE_URL.replace(/\/$/, "")}/v1/chat/completions`;
         // 构建请求头
         const headers = {
             "Content-Type": "application/json",
@@ -163,7 +163,8 @@ server.tool("chat_with_remote_ollama", "向远程 Ollama 服务器发送对话�
             };
         }
         const data = await response.json();
-        const reply = data.message?.content || "No content returned";
+        const reply = data.choices?.[0]?.message?.content || "No content returned";
+        console.error('[MCP DEBUG] Extracted reply:', reply);
         return {
             content: [
                 {

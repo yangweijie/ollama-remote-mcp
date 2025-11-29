@@ -101,7 +101,7 @@ server.tool(
 
       // 如果只显示云端模型，过滤结果
       const filteredModels = only_remote 
-        ? modelList.filter(model => model.isRemoteModel)
+        ? modelList.filter((model: { isRemoteModel: boolean }) => model.isRemoteModel)
         : modelList;
 
       const displayModels = filteredModels.length > 0 ? filteredModels : modelList;
@@ -151,7 +151,7 @@ server.tool(
 
     try {
       // 构建请求 URL
-      const url = `${OLLAMA_BASE_URL.replace(/\/$/, "")}/api/chat`;
+      const url = `${OLLAMA_BASE_URL.replace(/\/$/, "")}/v1/chat/completions`;
 
       // 构建请求头
       const headers: Record<string, string> = {
@@ -197,7 +197,8 @@ server.tool(
       }
 
       const data = await response.json() as any;
-      const reply = data.message?.content || "No content returned";
+      const reply = data.choices?.[0]?.message?.content || "No content returned";
+      console.error('[MCP DEBUG] Extracted reply:', reply);
 
       return {
         content: [

@@ -35,26 +35,41 @@ export class TaskExecutor {
     const startTime = Date.now();
     const actualTimeout = timeout || this.defaultTimeout;
 
+    console.error(`[TaskExecutor] STEP 1: Starting task execution for model: ${request.modelName}`);
+    console.error(`[TaskExecutor] STEP 2: Task type: ${request.task.taskType}, Domain: ${request.task.domain}`);
+    console.error(`[TaskExecutor] STEP 3: Timeout set to: ${actualTimeout}ms`);
+
     try {
       // Create timeout promise
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
+          console.error(`[TaskExecutor] TIMEOUT: Execution exceeded ${actualTimeout}ms`);
           reject(new Error(`Execution timeout after ${actualTimeout}ms`));
         }, actualTimeout);
       });
 
+      // Format message
+      const formattedMessage = this.formatMessage(request);
+      console.error(`[TaskExecutor] STEP 4: Message formatted, length: ${formattedMessage.length} chars`);
+      console.error(`[TaskExecutor] STEP 5: System prompt length: ${request.systemPrompt?.length || 0} chars`);
+
       // Execute the task
+      console.error(`[TaskExecutor] STEP 6: Calling Ollama client.chat() with model: ${request.modelName}`);
       const executionPromise = this.client.chat(
         request.modelName,
-        this.formatMessage(request),
+        formattedMessage,
         request.systemPrompt,
         request.temperature || 0.7
       );
 
       // Race between execution and timeout
+      console.error(`[TaskExecutor] STEP 7: Waiting for response (timeout: ${actualTimeout}ms)...`);
       const result = await Promise.race([executionPromise, timeoutPromise]);
 
       const executionTime = Date.now() - startTime;
+      console.error(`[TaskExecutor] STEP 8: Response received in ${executionTime}ms`);
+      console.error(`[TaskExecutor] STEP 9: Response length: ${result.content.length} chars`);
+      console.error(`[TaskExecutor] STEP 10: Tokens used: ${result.tokensUsed || 'unknown'}`);
 
       return {
         success: true,
@@ -72,6 +87,9 @@ export class TaskExecutor {
       };
     } catch (error: any) {
       const executionTime = Date.now() - startTime;
+      console.error(`[TaskExecutor] ERROR: Task execution failed after ${executionTime}ms`);
+      console.error(`[TaskExecutor] ERROR MESSAGE: ${error.message}`);
+      console.error(`[TaskExecutor] ERROR STACK: ${error.stack}`);
 
       // Return as failed execution result
       return {
@@ -102,21 +120,33 @@ export class TaskExecutor {
     const errors: ExecutionErrorType[] = [];
     const modelsToTry = [request.modelName, ...fallbackModels];
 
-    for (const model of modelsToTry) {
+    console.error(`[TaskExecutor.executeWithFallback] Starting fallback execution`);
+    console.error(`[TaskExecutor.executeWithFallback] Primary model: ${request.modelName}`);
+    console.error(`[TaskExecutor.executeWithFallback] Fallback models: ${fallbackModels.join(', ')}`);
+    console.error(`[TaskExecutor.executeWithFallback] Total models to try: ${modelsToTry.length}`);
+
+    for (let i = 0; i < modelsToTry.length; i++) {
+      const model = modelsToTry[i];
+      console.error(`[TaskExecutor.executeWithFallback] Attempt ${i + 1}/${modelsToTry.length}: Trying model "${model}"`);
+
       try {
         const modifiedRequest = { ...request, modelName: model };
         const result = await this.executeTask(modifiedRequest, timeout);
 
         if (result.success) {
+          console.error(`[TaskExecutor.executeWithFallback] SUCCESS: Model "${model}" succeeded`);
           return result;
         } else {
+          const errorMsg = result.metadata?.error || 'Execution failed';
+          console.error(`[TaskExecutor.executeWithFallback] FAILED: Model "${model}" failed with error: ${errorMsg}`);
           errors.push({
             modelAttempted: model,
-            error: result.metadata?.error || 'Execution failed',
+            error: errorMsg,
             timestamp: Date.now(),
           });
         }
       } catch (error: any) {
+        console.error(`[TaskExecutor.executeWithFallback] EXCEPTION: Model "${model}" threw exception: ${error.message}`);
         errors.push({
           modelAttempted: model,
           error: error.message,
@@ -126,6 +156,10 @@ export class TaskExecutor {
     }
 
     // All models failed
+    console.error(`[TaskExecutor.executeWithFallback] ALL MODELS FAILED. Total errors: ${errors.length}`);
+    errors.forEach((err, idx) => {
+      console.error(`[TaskExecutor.executeWithFallback] Error ${idx + 1}: Model="${err.modelAttempted}", Error="${err.error}"`);
+    });
     return errors;
   }
 

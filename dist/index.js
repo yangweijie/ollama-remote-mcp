@@ -748,15 +748,27 @@ class TaskExecutor {
   async executeTask(request, timeout) {
     const startTime = Date.now();
     const actualTimeout = timeout || this.defaultTimeout;
+    console.error(`[TaskExecutor] STEP 1: Starting task execution for model: ${request.modelName}`);
+    console.error(`[TaskExecutor] STEP 2: Task type: ${request.task.taskType}, Domain: ${request.task.domain}`);
+    console.error(`[TaskExecutor] STEP 3: Timeout set to: ${actualTimeout}ms`);
     try {
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
+          console.error(`[TaskExecutor] TIMEOUT: Execution exceeded ${actualTimeout}ms`);
           reject(new Error(`Execution timeout after ${actualTimeout}ms`));
         }, actualTimeout);
       });
-      const executionPromise = this.client.chat(request.modelName, this.formatMessage(request), request.systemPrompt, request.temperature || 0.7);
+      const formattedMessage = this.formatMessage(request);
+      console.error(`[TaskExecutor] STEP 4: Message formatted, length: ${formattedMessage.length} chars`);
+      console.error(`[TaskExecutor] STEP 5: System prompt length: ${request.systemPrompt?.length || 0} chars`);
+      console.error(`[TaskExecutor] STEP 6: Calling Ollama client.chat() with model: ${request.modelName}`);
+      const executionPromise = this.client.chat(request.modelName, formattedMessage, request.systemPrompt, request.temperature || 0.7);
+      console.error(`[TaskExecutor] STEP 7: Waiting for response (timeout: ${actualTimeout}ms)...`);
       const result = await Promise.race([executionPromise, timeoutPromise]);
       const executionTime = Date.now() - startTime;
+      console.error(`[TaskExecutor] STEP 8: Response received in ${executionTime}ms`);
+      console.error(`[TaskExecutor] STEP 9: Response length: ${result.content.length} chars`);
+      console.error(`[TaskExecutor] STEP 10: Tokens used: ${result.tokensUsed || "unknown"}`);
       return {
         success: true,
         modelUsed: request.modelName,
@@ -773,6 +785,9 @@ class TaskExecutor {
       };
     } catch (error) {
       const executionTime = Date.now() - startTime;
+      console.error(`[TaskExecutor] ERROR: Task execution failed after ${executionTime}ms`);
+      console.error(`[TaskExecutor] ERROR MESSAGE: ${error.message}`);
+      console.error(`[TaskExecutor] ERROR STACK: ${error.stack}`);
       return {
         success: false,
         modelUsed: request.modelName,
@@ -792,20 +807,30 @@ class TaskExecutor {
   async executeWithFallback(request, fallbackModels, timeout) {
     const errors = [];
     const modelsToTry = [request.modelName, ...fallbackModels];
-    for (const model of modelsToTry) {
+    console.error(`[TaskExecutor.executeWithFallback] Starting fallback execution`);
+    console.error(`[TaskExecutor.executeWithFallback] Primary model: ${request.modelName}`);
+    console.error(`[TaskExecutor.executeWithFallback] Fallback models: ${fallbackModels.join(", ")}`);
+    console.error(`[TaskExecutor.executeWithFallback] Total models to try: ${modelsToTry.length}`);
+    for (let i = 0;i < modelsToTry.length; i++) {
+      const model = modelsToTry[i];
+      console.error(`[TaskExecutor.executeWithFallback] Attempt ${i + 1}/${modelsToTry.length}: Trying model "${model}"`);
       try {
         const modifiedRequest = { ...request, modelName: model };
         const result = await this.executeTask(modifiedRequest, timeout);
         if (result.success) {
+          console.error(`[TaskExecutor.executeWithFallback] SUCCESS: Model "${model}" succeeded`);
           return result;
         } else {
+          const errorMsg = result.metadata?.error || "Execution failed";
+          console.error(`[TaskExecutor.executeWithFallback] FAILED: Model "${model}" failed with error: ${errorMsg}`);
           errors.push({
             modelAttempted: model,
-            error: result.metadata?.error || "Execution failed",
+            error: errorMsg,
             timestamp: Date.now()
           });
         }
       } catch (error) {
+        console.error(`[TaskExecutor.executeWithFallback] EXCEPTION: Model "${model}" threw exception: ${error.message}`);
         errors.push({
           modelAttempted: model,
           error: error.message,
@@ -813,6 +838,10 @@ class TaskExecutor {
         });
       }
     }
+    console.error(`[TaskExecutor.executeWithFallback] ALL MODELS FAILED. Total errors: ${errors.length}`);
+    errors.forEach((err, idx) => {
+      console.error(`[TaskExecutor.executeWithFallback] Error ${idx + 1}: Model="${err.modelAttempted}", Error="${err.error}"`);
+    });
     return errors;
   }
   formatMessage(request) {
@@ -965,24 +994,35 @@ class MiniSWEAgent {
   }
   async executeTask(input) {
     if (!this.initialized) {
+      console.error("[MiniSWEAgent] Not initialized, initializing now...");
       await this.initialize();
     }
     this.logger.clear();
+    console.error("[MiniSWEAgent] ========== TASK EXECUTION START ==========");
+    console.error(`[MiniSWEAgent] Task description: ${input.description}`);
+    console.error(`[MiniSWEAgent] Task context: ${input.context ? input.context.substring(0, 100) + "..." : "none"}`);
+    console.error(`[MiniSWEAgent] Task type: ${input.taskType || "auto-detect"}`);
     this.logger.info("Starting task execution", { task: input.description });
     try {
+      console.error("[MiniSWEAgent] STEP 1: Parsing task...");
       this.logger.debug("Parsing task");
       const parsedTask = this.taskParser.parseTask(input);
+      console.error(`[MiniSWEAgent] STEP 1 RESULT: domain=${parsedTask.domain}, complexity=${parsedTask.complexity}, taskType=${parsedTask.taskType}`);
       this.logger.info("Task parsed", {
         domain: parsedTask.domain,
         complexity: parsedTask.complexity,
         taskType: parsedTask.taskType
       });
+      console.error("[MiniSWEAgent] STEP 2: Selecting best model...");
       this.logger.debug("Selecting model");
       const selection = this.modelSelector.selectModel(parsedTask);
+      console.error(`[MiniSWEAgent] STEP 2 RESULT: selectedModel=${selection.selectedModel}, score=${selection.score.score}`);
+      console.error(`[MiniSWEAgent] STEP 2 ALTERNATIVES: ${selection.alternatives.map((a) => `${a.modelName}(${a.score})`).join(", ")}`);
       this.logger.info("Model selected", {
         model: selection.selectedModel,
         score: selection.score.score
       });
+      console.error("[MiniSWEAgent] STEP 3: Generating system prompt...");
       this.logger.debug("Generating system prompt");
       const systemPrompt = this.promptGenerator.generateSystemPrompt({
         taskType: parsedTask.taskType,
@@ -990,33 +1030,54 @@ class MiniSWEAgent {
         domain: parsedTask.domain,
         context: input.context
       });
+      console.error(`[MiniSWEAgent] STEP 3 RESULT: systemPrompt length=${systemPrompt.length} chars`);
+      console.error("[MiniSWEAgent] STEP 4: Creating execution request...");
       const executionRequest = {
         task: parsedTask,
         modelName: selection.selectedModel,
         systemPrompt,
         temperature: 0.7
       };
+      console.error(`[MiniSWEAgent] STEP 4 RESULT: request created for model=${executionRequest.modelName}`);
+      console.error("[MiniSWEAgent] STEP 5: Executing task with fallback models...");
       this.logger.debug("Executing task", { model: selection.selectedModel });
       const fallbackModels = selection.alternatives.map((alt) => alt.modelName);
+      console.error(`[MiniSWEAgent] STEP 5: Primary model: ${selection.selectedModel}`);
+      console.error(`[MiniSWEAgent] STEP 5: Fallback models: ${fallbackModels.join(", ")}`);
       const executionResult = await this.taskExecutor.executeWithFallback(executionRequest, fallbackModels);
+      console.error(`[MiniSWEAgent] STEP 5 RESULT: execution completed, result type=${Array.isArray(executionResult) ? "error array" : "success"}`);
       let finalResult;
       if (Array.isArray(executionResult)) {
         const errors = executionResult;
+        console.error(`[MiniSWEAgent] STEP 6: ALL MODELS FAILED`);
+        console.error(`[MiniSWEAgent] STEP 6: Failed models: ${errors.map((e) => e.modelAttempted).join(", ")}`);
+        errors.forEach((err, idx) => {
+          console.error(`[MiniSWEAgent] STEP 6: Error ${idx + 1}: ${err.modelAttempted} - ${err.error}`);
+        });
         this.logger.error("All models failed", {
           attemptedModels: errors.map((e) => e.modelAttempted)
         });
         return this.resultFormatter.formatError(parsedTask, `All models failed: ${errors.map((e) => `${e.modelAttempted}: ${e.error}`).join("; ")}`, this.logger.getLogs());
       } else {
         finalResult = executionResult;
+        console.error(`[MiniSWEAgent] STEP 6: EXECUTION SUCCEEDED`);
+        console.error(`[MiniSWEAgent] STEP 6: Model used: ${finalResult.modelUsed}`);
+        console.error(`[MiniSWEAgent] STEP 6: Execution time: ${finalResult.executionTime}ms`);
+        console.error(`[MiniSWEAgent] STEP 6: Confidence: ${finalResult.confidence}%`);
         this.logger.info("Task execution completed", {
           modelUsed: finalResult.modelUsed,
           executionTime: finalResult.executionTime,
           confidence: finalResult.confidence
         });
       }
+      console.error("[MiniSWEAgent] STEP 7: Formatting result...");
       const formattedResult = this.resultFormatter.formatResult(parsedTask, selection, finalResult, this.logger.getLogs());
+      console.error("[MiniSWEAgent] ========== TASK EXECUTION END (SUCCESS) ==========");
       return formattedResult;
     } catch (error) {
+      console.error("[MiniSWEAgent] ========== TASK EXECUTION END (ERROR) ==========");
+      console.error(`[MiniSWEAgent] ERROR: ${error.message}`);
+      console.error(`[MiniSWEAgent] STACK: ${error.stack}`);
       this.logger.error("Task execution failed", { error: error.message });
       const parsedTask = this.taskParser.parseTask(input);
       return this.resultFormatter.formatError(parsedTask, error.message, this.logger.getLogs());
@@ -1039,38 +1100,55 @@ class OllamaRemoteMCPClient {
     this.apiKey = apiKey || process.env.OLLAMA_API_KEY || "";
   }
   async listModels() {
+    console.error(`[OllamaRemoteMCPClient.listModels] Fetching available models from ${this.baseUrl}`);
     try {
       const url = `${this.baseUrl.replace(/\/$/, "")}/api/tags`;
+      console.error(`[OllamaRemoteMCPClient.listModels] URL: ${url}`);
       const headers = {
         "Content-Type": "application/json"
       };
       if (this.apiKey) {
         headers["Authorization"] = `Bearer ${this.apiKey}`;
       }
+      console.error(`[OllamaRemoteMCPClient.listModels] Sending GET request...`);
       const response = await fetch(url, {
         method: "GET",
         headers
       });
+      console.error(`[OllamaRemoteMCPClient.listModels] Response status: ${response.status}`);
       if (!response.ok) {
         throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
       }
       const data = await response.json();
       const models = data.models || [];
-      return models.map((model) => model.name);
+      console.error(`[OllamaRemoteMCPClient.listModels] Found ${models.length} models`);
+      const modelNames = models.map((model) => model.name);
+      console.error(`[OllamaRemoteMCPClient.listModels] Model names: ${modelNames.join(", ")}`);
+      return modelNames;
     } catch (error) {
-      console.error("Failed to list Ollama models:", error.message);
+      console.error(`[OllamaRemoteMCPClient.listModels] ERROR: ${error.message}`);
       return [];
     }
   }
   async chat(model, message, systemPrompt, temperature) {
     const startTime = Date.now();
+    console.error(`[OllamaRemoteMCPClient.chat] ========== NETWORK REQUEST START ==========`);
+    console.error(`[OllamaRemoteMCPClient.chat] Model: ${model}`);
+    console.error(`[OllamaRemoteMCPClient.chat] Base URL: ${this.baseUrl}`);
+    console.error(`[OllamaRemoteMCPClient.chat] Message length: ${message.length} chars`);
+    console.error(`[OllamaRemoteMCPClient.chat] System prompt: ${systemPrompt ? "yes" : "no"}`);
+    console.error(`[OllamaRemoteMCPClient.chat] Temperature: ${temperature || 0.7}`);
     try {
       const url = `${this.baseUrl.replace(/\/$/, "")}/v1/chat/completions`;
+      console.error(`[OllamaRemoteMCPClient.chat] URL: ${url}`);
       const headers = {
         "Content-Type": "application/json"
       };
       if (this.apiKey) {
         headers["Authorization"] = `Bearer ${this.apiKey}`;
+        console.error(`[OllamaRemoteMCPClient.chat] API Key: configured`);
+      } else {
+        console.error(`[OllamaRemoteMCPClient.chat] API Key: not configured`);
       }
       const body = {
         model,
@@ -1083,24 +1161,43 @@ class OllamaRemoteMCPClient {
           temperature: temperature || 0.7
         }
       };
+      console.error(`[OllamaRemoteMCPClient.chat] Request body size: ${JSON.stringify(body).length} bytes`);
+      console.error(`[OllamaRemoteMCPClient.chat] Sending POST request...`);
       const response = await fetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify(body)
       });
+      const elapsedTime = Date.now() - startTime;
+      console.error(`[OllamaRemoteMCPClient.chat] Response received after ${elapsedTime}ms`);
+      console.error(`[OllamaRemoteMCPClient.chat] Response status: ${response.status} ${response.statusText}`);
+      console.error(`[OllamaRemoteMCPClient.chat] Response headers: Content-Type=${response.headers.get("content-type")}`);
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[OllamaRemoteMCPClient.chat] ERROR RESPONSE BODY: ${errorText.substring(0, 500)}`);
         throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
       }
+      console.error(`[OllamaRemoteMCPClient.chat] Parsing response JSON...`);
       const data = await response.json();
+      console.error(`[OllamaRemoteMCPClient.chat] Response parsed successfully`);
+      console.error(`[OllamaRemoteMCPClient.chat] Response keys: ${Object.keys(data).join(", ")}`);
       const content = data.choices?.[0]?.message?.content || "";
       const tokensUsed = data.usage?.total_tokens;
+      console.error(`[OllamaRemoteMCPClient.chat] Content length: ${content.length} chars`);
+      console.error(`[OllamaRemoteMCPClient.chat] Tokens used: ${tokensUsed || "unknown"}`);
       const executionTime = Date.now() - startTime;
+      console.error(`[OllamaRemoteMCPClient.chat] Total execution time: ${executionTime}ms`);
+      console.error(`[OllamaRemoteMCPClient.chat] ========== NETWORK REQUEST END (SUCCESS) ==========`);
       return {
         content,
         tokensUsed,
         executionTime
       };
     } catch (error) {
+      const elapsedTime = Date.now() - startTime;
+      console.error(`[OllamaRemoteMCPClient.chat] ========== NETWORK REQUEST END (ERROR) ==========`);
+      console.error(`[OllamaRemoteMCPClient.chat] Error after ${elapsedTime}ms: ${error.message}`);
+      console.error(`[OllamaRemoteMCPClient.chat] Error stack: ${error.stack}`);
       throw new Error(`Failed to chat with model ${model}: ${error.message}`);
     }
   }

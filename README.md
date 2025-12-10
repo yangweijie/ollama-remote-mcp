@@ -185,17 +185,40 @@ ollama-remote-mcp/
 }
 ~~~
 
-### 提问
+### 提问1
+
 ~~~ 
 请使用 remote ollama 工具，调用 gemini-3-pro-preview 模型帮我写一个 Python 的 Hello World。
 ~~~
 
 ps:
 > gemini-3-pro-preview 变为了 gemini-3-pro-preview:latest 换 kimi-k2-thinking:cloud 才好使。
+
+
+### 效果1
+![在trae中使用效果](./screenshot/chat_with_trae.png)
+
+### 提问2
+
+~~~
+请使用 remote ollama mini_swe_execute_task 工具，
+
+function add(a, b) {
+
+return a + b;
+
+}
+
+// This should return 10, but returns "55"
+
+console.log(add(5, 5));
+
+修复 add 函数里的bug
 ~~~
 
-### 效果
-![在trae中使用效果](./screenshot/chat_with_trae.png)
+### 效果2
+![在kiro中使用效果](./screenshot/mini_swe_execute_task.png)
+
 
 ## 开发
 

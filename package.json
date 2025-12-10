@@ -1,6 +1,6 @@
 {
   "name": "ollama-remote-mcp",
-  "version": "1.0.8",
+  "version": "1.1.0",
   "description": "A Model Context Protocol (MCP) server for remote Ollama access",
   "type": "module",
   "main": "dist/index.js",

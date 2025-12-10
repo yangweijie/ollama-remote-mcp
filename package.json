@@ -24,12 +24,12 @@
   },
   "homepage": "https://github.com/yangweijie/ollama-remote-mcp#readme",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "test": "node test.cjs",
-    "test:connection": "node test.cjs connection",
-    "test:build": "node test.cjs build",
-    "test:start": "node test.cjs start"
+    "build": "bun build src/index.ts --outdir dist --target node --external @modelcontextprotocol/sdk --external zod",
+    "start": "bun dist/index.js",
+    "test": "bun test.cjs",
+    "test:connection": "bun test.cjs connection",
+    "test:build": "bun test.cjs build",
+    "test:start": "bun test.cjs start"
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",

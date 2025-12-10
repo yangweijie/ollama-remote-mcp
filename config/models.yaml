@@ -1,0 +1,67 @@
+models:
+  deepseek-v3.2:
+    provider: ollama
+    domains:
+      - code
+      - math
+      - reasoning
+    maxComplexity: expert
+    capabilities:
+      - code_generation
+      - tool_use
+      - reasoning
+      - math
+    contextWindow: 128000
+    estimatedLatency: 5000
+    costPerToken: 0.0001
+    strengths:
+      - Complex reasoning
+      - Mathematical proofs
+      - Code analysis
+      - Multi-step problem solving
+    weaknesses:
+      - Real-time constraints
+      - Very large contexts
+
+  qwen3-coder:
+    provider: ollama
+    domains:
+      - code
+    maxComplexity: expert
+    capabilities:
+      - code_generation
+      - tool_use
+      - testing
+      - debugging
+    contextWindow: 256000
+    estimatedLatency: 3000
+    costPerToken: 0.00008
+    strengths:
+      - Code generation
+      - Terminal automation
+      - Test writing
+      - Debugging
+    weaknesses:
+      - Mathematical reasoning
+      - Non-code tasks
+
+  llama3:
+    provider: ollama
+    domains:
+      - general
+      - reasoning
+    maxComplexity: moderate
+    capabilities:
+      - reasoning
+      - general_knowledge
+    contextWindow: 8192
+    estimatedLatency: 2000
+    costPerToken: 0.00005
+    strengths:
+      - General conversation
+      - Simple reasoning
+      - Quick responses
+    weaknesses:
+      - Complex code generation
+      - Advanced mathematics
+      - Large contexts

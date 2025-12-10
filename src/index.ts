@@ -2,6 +2,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { MiniSWEAgent } from "./mini-swe-agent/MiniSWEAgent.js";
+import { OllamaRemoteMCPClient } from "./mini-swe-agent/OllamaRemoteMCPClient.js";
+import * as path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // 工具函数：格式化文件大小
 function formatSize(bytes: number): string {
@@ -15,12 +23,24 @@ function formatSize(bytes: number): string {
 // 1. 获取配置 (优先使用环境变量)
 // 在 Claude Desktop 配置文件中通过 env 传入
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
-const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY || ""; 
+const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY || "";
 
 // 创建 MCP 服务器实例
 const server = new McpServer({
   name: "remote-ollama-mcp",
   version: "1.0.0",
+});
+
+// Initialize Mini-SWE Agent
+const configPath = process.env.MINI_SWE_CONFIG_PATH || 
+  path.join(__dirname, '../config/models.yaml');
+
+const ollamaClient = new OllamaRemoteMCPClient(OLLAMA_BASE_URL, OLLAMA_API_KEY);
+const miniSWEAgent = new MiniSWEAgent({
+  configPath,
+  ollamaClient,
+  logLevel: (process.env.MINI_SWE_LOG_LEVEL as any) || 'INFO',
+  timeout: parseInt(process.env.MINI_SWE_TIMEOUT || '60000'),
 });
 
 // 2. 定义工具：让 Claude 可以调用远程 Ollama 模型
@@ -112,7 +132,11 @@ server.tool(
         return `${index + 1}. **${prefix}** ${model.name}\n   - 大小: ${model.size}\n   - 更新时间: ${model.modifiedAt}`;
       }).join('\n\n');
 
-      const summary = `🤖 Ollama 模型列表\n\n总共有 ${models.length} 个可用模型${only_remote ? ' (仅显示云端模型)' : ''}:\n\n${modelListText}`;
+      const summary = `🤖 Ollama 模型列表
+
+总共有 ${models.length} 个可用模型${only_remote ? ' (仅显示云端模型)' : ''}:
+
+${modelListText}`;
 
       return {
         content: [
@@ -215,6 +239,50 @@ server.tool(
           {
             type: "text",
             text: `Connection Failed: ${error.message}. Please check your OLLAMA_BASE_URL and connectivity.`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// 2.3 工具:Mini-SWE Agent - 智能任务执行
+server.tool(
+  "mini_swe_execute_task",
+  "智能软件工程任务执行工具。自动选择最适合的模型来完成软件工程任务,支持代码生成、bug修复、代码审查、测试编写等任务类型。",
+  {
+    description: z.string().describe("任务描述,至少10个字符,详细说明要完成的任务"),
+    context: z.string().optional().describe("可选的上下文信息,如代码片段、错误信息等"),
+    task_type: z.string().optional().describe("可选的任务类型:code_generation, bug_fixing, code_review, test_writing, documentation, architecture_analysis"),
+  },
+  async ({ description, context, task_type }) => {
+    try {
+      // Execute task using Mini-SWE Agent
+      const result = await miniSWEAgent.executeTask({
+        description,
+        context,
+        taskType: task_type,
+      });
+
+      // Format result as text for better readability
+      const formatter = new (await import('./components/ResultFormatter.js')).ResultFormatter();
+      const textResult = formatter.toText(result);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: textResult,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Mini-SWE Agent execution failed: ${error.message}`,
           },
         ],
         isError: true,
